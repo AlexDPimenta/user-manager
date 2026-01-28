@@ -5,8 +5,9 @@ namespace UserManager.WebApi.Data;
 
 public interface IUserRepository
 {
-    Task<bool> ExistsByEmailAsync(string email);
-    Task<User?> GetByEmailAsync(string email);
+    Task<bool> ExistsByUsernameAsync(string username);
+    Task<User?> GetByUsernameAsync(string username);
+    Task<User?> GetByIdAsync(int id);
     Task AddAsync(User user);
     Task SaveChangesAsync();
 }
@@ -20,14 +21,19 @@ public class UserRepository : IUserRepository
         _context = context;
     }
 
-    public async Task<bool> ExistsByEmailAsync(string email)
+    public async Task<bool> ExistsByUsernameAsync(string username)
     {
-        return await _context.Users.AnyAsync(u => u.Email == email);
+        return await _context.Users.AnyAsync(u => u.Username == username);
     }
 
-    public async Task<User?> GetByEmailAsync(string email)
+    public async Task<User?> GetByUsernameAsync(string username)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+    }
+
+    public async Task<User?> GetByIdAsync(int id)
+    {
+        return await _context.Users.FindAsync(id);
     }
 
     public async Task AddAsync(User user)

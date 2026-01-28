@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UserManager.WebApi.Data;
 using UserManager.WebApi.Services;
+using System.Diagnostics.CodeAnalysis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,3 +41,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+[ExcludeFromCodeCoverage]
+public partial class Program { }

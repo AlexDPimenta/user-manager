@@ -15,44 +15,56 @@ public class UserService : IUserService
         _configuration = configuration;
     }
 
-    public async Task<UserDto> RegisterAsync(RegisterUserDto registerDto)
+    public async Task<UserResponseDto?> RegisterAsync(UserRegistrationDto registration)
     {
-        if (await _userRepository.ExistsByEmailAsync(registerDto.Email))
+        if (await _userRepository.ExistsByUsernameAsync(registration.Username))
             throw new Exception("User already exists");
 
         var user = new User
         {
-            Username = registerDto.Username,
-            Email = registerDto.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
-            FullName = registerDto.FullName
+            Username = registration.Username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(registration.Password),
+            FirstName = registration.FirstName,
+            LastName = registration.LastName,
+            Weight = registration.Weight,
+            Address = registration.Address
         };
 
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            FullName = user.FullName
-        };
+        return new UserResponseDto(
+            user.Id,
+            user.Username,
+            user.FirstName,
+            user.LastName,
+            user.Weight,
+            user.Address
+        );
     }
 
-    public async Task<UserDto?> LoginAsync(LoginDto loginDto)
+    public async Task<string?> LoginAsync(UserLoginDto login)
     {
-        var user = await _userRepository.GetByEmailAsync(loginDto.Email);
+        var user = await _userRepository.GetByUsernameAsync(login.Username);
 
-        if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
+        if (user == null || !BCrypt.Net.BCrypt.Verify(login.Password, user.PasswordHash))
             return null;
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            FullName = user.FullName
-        };
+        return "fake-jwt-token"; 
+    }
+
+    public async Task<UserResponseDto?> GetByIdAsync(int id)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return null;
+
+        return new UserResponseDto(
+            user.Id,
+            user.Username,
+            user.FirstName,
+            user.LastName,
+            user.Weight,
+            user.Address
+        );
     }
 }

@@ -28,18 +28,19 @@ public class UserServiceTests
     public async Task RegisterAsync_WhenUserAlreadyExists_ShouldThrowException()
     {
         // Arrange
-        var registerDto = new RegisterUserDto
-        {
-            Username = _faker.Internet.UserName(),
-            Email = _faker.Internet.Email(),
-            Password = "Password123!",
-            FullName = _faker.Name.FullName()
-        };
+        var registrationDto = new UserRegistrationDto(
+            _faker.Internet.UserName(),
+            "Password123!",
+            _faker.Name.FirstName(),
+            _faker.Name.LastName(),
+            _faker.Random.Double(50, 100),
+            _faker.Address.FullAddress()
+        );
 
-        _userRepositoryMock.ExistsByEmailAsync(registerDto.Email).Returns(true);
+        _userRepositoryMock.ExistsByUsernameAsync(registrationDto.Username).Returns(true);
 
         // Act
-        Func<Task> act = async () => await _sut.RegisterAsync(registerDto);
+        Func<Task> act = async () => await _sut.RegisterAsync(registrationDto);
 
         // Assert
         await act.Should().ThrowAsync<Exception>()
@@ -50,40 +51,45 @@ public class UserServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_WhenDataIsValid_ShouldReturnUserDtoAndSaveUser()
+    public async Task RegisterAsync_WhenDataIsValid_ShouldReturnUserResponseDtoAndSaveUser()
     {
         // Arrange
-        var registerDto = new RegisterUserDto
-        {
-            Username = _faker.Internet.UserName(),
-            Email = _faker.Internet.Email(),
-            Password = "Password123!",
-            FullName = _faker.Name.FullName()
-        };
+        var registrationDto = new UserRegistrationDto(
+            _faker.Internet.UserName(),
+            "Password123!",
+            _faker.Name.FirstName(),
+            _faker.Name.LastName(),
+            _faker.Random.Double(50, 100),
+            _faker.Address.FullAddress()
+        );
 
-        _userRepositoryMock.ExistsByEmailAsync(registerDto.Email).Returns(false);
+        _userRepositoryMock.ExistsByUsernameAsync(registrationDto.Username).Returns(false);
 
         // Act
-        var result = await _sut.RegisterAsync(registerDto);
+        var result = await _sut.RegisterAsync(registrationDto);
 
         // Assert
         result.Should().NotBeNull();
-        result.Username.Should().Be(registerDto.Username);
-        result.Email.Should().Be(registerDto.Email);
-        result.FullName.Should().Be(registerDto.FullName);
+        result!.Username.Should().Be(registrationDto.Username);
+        result.FirstName.Should().Be(registrationDto.FirstName);
+        result.LastName.Should().Be(registrationDto.LastName);
+        result.Weight.Should().Be(registrationDto.Weight);
+        result.Address.Should().Be(registrationDto.Address);
 
         await _userRepositoryMock.Received(1).AddAsync(Arg.Is<User>(u => 
-            u.Username == registerDto.Username && 
-            u.Email == registerDto.Email &&
-            u.FullName == registerDto.FullName &&
+            u.Username == registrationDto.Username && 
+            u.FirstName == registrationDto.FirstName &&
+            u.LastName == registrationDto.LastName &&
+            u.Weight == registrationDto.Weight &&
+            u.Address == registrationDto.Address &&
             !string.IsNullOrEmpty(u.PasswordHash) &&
-            u.PasswordHash != registerDto.Password // Verify hashing happened
+            u.PasswordHash != registrationDto.Password
         ));
         await _userRepositoryMock.Received(1).SaveChangesAsync();
     }
 
     [Fact]
-    public async Task LoginAsync_WhenCredentialsAreValid_ShouldReturnUserDto()
+    public async Task LoginAsync_WhenCredentialsAreValid_ShouldReturnToken()
     {
         // Arrange
         var password = "Password123!";
@@ -92,39 +98,30 @@ public class UserServiceTests
         {
             Id = 1,
             Username = _faker.Internet.UserName(),
-            Email = _faker.Internet.Email(),
             PasswordHash = passwordHash,
-            FullName = _faker.Name.FullName()
+            FirstName = _faker.Name.FirstName(),
+            LastName = _faker.Name.LastName()
         };
 
-        var loginDto = new LoginDto
-        {
-            Email = user.Email,
-            Password = password
-        };
+        var loginDto = new UserLoginDto(user.Username, password);
 
-        _userRepositoryMock.GetByEmailAsync(loginDto.Email).Returns(user);
+        _userRepositoryMock.GetByUsernameAsync(loginDto.Username).Returns(user);
 
         // Act
         var result = await _sut.LoginAsync(loginDto);
 
         // Assert
         result.Should().NotBeNull();
-        result!.Email.Should().Be(user.Email);
-        result.Username.Should().Be(user.Username);
+        result.Should().Be("fake-jwt-token");
     }
 
     [Fact]
     public async Task LoginAsync_WhenUserDoesNotExist_ShouldReturnNull()
     {
         // Arrange
-        var loginDto = new LoginDto
-        {
-            Email = _faker.Internet.Email(),
-            Password = "AnyPassword"
-        };
+        var loginDto = new UserLoginDto(_faker.Internet.UserName(), "AnyPassword");
 
-        _userRepositoryMock.GetByEmailAsync(loginDto.Email).Returns((User?)null);
+        _userRepositoryMock.GetByUsernameAsync(loginDto.Username).Returns((User?)null);
 
         // Act
         var result = await _sut.LoginAsync(loginDto);
@@ -134,27 +131,31 @@ public class UserServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_WhenPasswordIsInvalid_ShouldReturnNull()
+    public async Task GetByIdAsync_WhenUserExists_ShouldReturnUserResponseDto()
     {
         // Arrange
         var user = new User
         {
-            Email = _faker.Internet.Email(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("CorrectPassword")
+            Id = 1,
+            Username = _faker.Internet.UserName(),
+            FirstName = _faker.Name.FirstName(),
+            LastName = _faker.Name.LastName(),
+            Weight = 75.5,
+            Address = _faker.Address.FullAddress()
         };
 
-        var loginDto = new LoginDto
-        {
-            Email = user.Email,
-            Password = "WrongPassword"
-        };
-
-        _userRepositoryMock.GetByEmailAsync(loginDto.Email).Returns(user);
+        _userRepositoryMock.GetByIdAsync(user.Id).Returns(user);
 
         // Act
-        var result = await _sut.LoginAsync(loginDto);
+        var result = await _sut.GetByIdAsync(user.Id);
 
         // Assert
-        result.Should().BeNull();
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(user.Id);
+        result.Username.Should().Be(user.Username);
+        result.FirstName.Should().Be(user.FirstName);
+        result.LastName.Should().Be(user.LastName);
+        result.Weight.Should().Be(user.Weight);
+        result.Address.Should().Be(user.Address);
     }
 }

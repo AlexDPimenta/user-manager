@@ -384,3 +384,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Test and Coverage results
+TestResults/
+coveragereport/
+*.cobertura.xml
