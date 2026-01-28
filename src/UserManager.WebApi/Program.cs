@@ -13,6 +13,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<UserManagerDbContext>(options =>
     options.UseSqlite("Data Source=users.db"));
 
+// Repository
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 // Dependency Injection
 builder.Services.AddScoped<IUserService, UserService>();
 

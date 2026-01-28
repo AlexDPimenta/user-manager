@@ -1,52 +1,58 @@
-using Microsoft.EntityFrameworkCore;
 using UserManager.WebApi.Data;
 using UserManager.WebApi.DTOs;
 using UserManager.WebApi.Models;
-using BC = BCrypt.Net.BCrypt;
 
 namespace UserManager.WebApi.Services;
 
-public class UserService(UserManagerDbContext context, IConfiguration configuration) : IUserService
+public class UserService : IUserService
 {
-    public async Task<UserResponseDto?> RegisterAsync(UserRegistrationDto registration)
+    private readonly IUserRepository _userRepository;
+    private readonly IConfiguration _configuration;
+
+    public UserService(IUserRepository userRepository, IConfiguration configuration)
     {
-        if (await context.Users.AnyAsync(u => u.Username == registration.Username))
-            return null;
+        _userRepository = userRepository;
+        _configuration = configuration;
+    }
+
+    public async Task<UserDto> RegisterAsync(RegisterUserDto registerDto)
+    {
+        if (await _userRepository.ExistsByEmailAsync(registerDto.Email))
+            throw new Exception("User already exists");
 
         var user = new User
         {
-            Username = registration.Username,
-            PasswordHash = BC.HashPassword(registration.Password),
-            FirstName = registration.FirstName,
-            LastName = registration.LastName,
-            Weight = registration.Weight,
-            Address = registration.Address
+            Username = registerDto.Username,
+            Email = registerDto.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
+            FullName = registerDto.FullName
         };
 
-        context.Users.Add(user);
-        await context.SaveChangesAsync();
+        await _userRepository.AddAsync(user);
+        await _userRepository.SaveChangesAsync();
 
-        return MapToDto(user);
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            FullName = user.FullName
+        };
     }
 
-    public async Task<string?> LoginAsync(UserLoginDto login)
+    public async Task<UserDto?> LoginAsync(LoginDto loginDto)
     {
-        var user = await context.Users.FirstOrDefaultAsync(u => u.Username == login.Username);
-        if (user == null || !BC.Verify(login.Password, user.PasswordHash))
+        var user = await _userRepository.GetByEmailAsync(loginDto.Email);
+
+        if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             return null;
 
-        // Para fins de treino, vamos retornar um "token" fake ou apenas sucesso
-        // Em um cenário real, aqui geramos o JWT
-        return "fake-jwt-token-for-training";
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            FullName = user.FullName
+        };
     }
-
-    public async Task<UserResponseDto?> GetByIdAsync(int id)
-    {
-        var user = await context.Users.FindAsync(id);
-        return user != null ? MapToDto(user) : null;
-    }
-
-    private static UserResponseDto MapToDto(User user) =>
-        new UserResponseDto(user.Id, user.Username, user.FirstName, user.LastName, user.Weight, user.Address);
 }
-
