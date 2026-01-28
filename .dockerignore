@@ -1,0 +1,15 @@
+** [Cc]onfig/
+** [Oo]bj/
+** [Bb]in/
+.dockerignore
+.env
+.git
+.gitignore
+.vs
+.vscode
+docker-compose*
+**/*.user
+**/*.suo
+**/*.json
+!appsettings.json
+!appsettings.Development.json
